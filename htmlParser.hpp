@@ -5,49 +5,54 @@
 #include <iostream>
 #include <string>
 
-class htmlParser
-{
+class htmlParser {
 public:
-    static void tokenizePrint(const std::string &html)
-    {
-        std::cout << "\n--- Starting HTML Tokenization ---\n";
-        size_t cursor = 0;
+  static std::string extractText(const std::string &html) {
+    std::string page_text = "";
+    size_t cursor = 0;
+    
+    bool ignore_text = false;
 
-        while (cursor < html.length())
-        {
-            size_t openBracket = html.find('<', cursor);
+    while (cursor < html.length()) {
+      size_t openBracket = html.find('<', cursor);
 
-            if (openBracket > cursor)
-            {
-                std::string text = html.substr(cursor, openBracket - cursor);
 
-                text.erase(0, text.find_first_not_of(" \n\r\t"));
-                if (!text.empty())
-                {
-                    std::cout << "[TEXT NODE] " << text << "\n";
-                }
-            }
-            if (openBracket == std::string::npos)
-                break;
-
-            size_t closeBracket = html.find('>', openBracket);
-            if (closeBracket == std::string::npos)
-                break;
-
-            std::string tagContent =
-                html.substr(openBracket + 1, closeBracket - openBracket - 1);
-
-            if (!tagContent.empty() && tagContent[0] == '/')
-            {
-                std::cout << "[CLOSE TAG] " << tagContent.substr(1) << "\n";
-            }
-            else
-            {
-                std::cout << "[OPEN TAG]  " << tagContent << "\n";
-            }
-            cursor = closeBracket + 1;
+      if (openBracket > cursor) {
+        std::string text = html.substr(cursor, openBracket - cursor);
+        text.erase(0, text.find_first_not_of(" \n\r\t")); 
+        
+        if (!text.empty() && !ignore_text) {
+          page_text += text + " ";
         }
-        std::cout << "--- Tokenization Complete ---\n\n";
+      }
+      
+      if (openBracket == std::string::npos) break;
+      
+      size_t closeBracket = html.find('>', openBracket);
+      if (closeBracket == std::string::npos) break;
+      
+      std::string tagContent = html.substr(openBracket + 1, closeBracket - openBracket - 1);
+      
+      if (!tagContent.empty()) {
+        if (tagContent[0] == '/') {
+          std::string tagName = tagContent.substr(1);
+          if (tagName == "script" || tagName == "style") {
+              ignore_text = false;
+          }
+        } else {
+
+          size_t spacePos = tagContent.find(' ');
+          std::string tagName = tagContent.substr(0, spacePos);
+          
+          if (tagName == "script" || tagName == "style") {
+              ignore_text = true;
+          }
+        }
+      }
+
+      cursor = closeBracket + 1;
     }
+    return page_text;
+  }
 };
 #endif
