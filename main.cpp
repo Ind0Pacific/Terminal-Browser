@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 int main() {
   using namespace std;
@@ -71,12 +72,13 @@ int main() {
       throw asio::system_error(error);
     }
 
-    //downloaded HTML
+    // Process HTML
     std::string htmlBody = htmlBodyStream.str();
-    std::string website_text = htmlParser::extractText(htmlBody); 
 
-    //  Open GUI
-    WindowManager::open_browser_window(input_domain, website_text);
+    // DOM Tree
+    std::vector<DOMNode> dom_tree = htmlParser::parseDOM(htmlBody); 
+
+    WindowManager::open_browser_window(input_domain, dom_tree);
 
   } catch (std::exception &e) {
     std::cerr << "Network Error: " << e.what() << "\n";
