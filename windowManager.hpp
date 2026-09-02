@@ -8,7 +8,13 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <iostream>
 #include "htmlParser.hpp" 
+
+struct Hitbox {
+    sf::FloatRect bounds;
+    std::string url;
+};
 
 class WindowManager {
 public:
@@ -30,12 +36,13 @@ public:
         return wrappedText + currentLine;
     }
 
-    static void open_browser_window(const std::string& page_title, const std::vector<DOMNode>& dom) {
+    static std::string open_browser_window(const std::string& page_title, const std::vector<DOMNode>& dom) {
         sf::RenderWindow window(sf::VideoMode(sf::Vector2u(800, 600)), "My C++ Browser - " + page_title);
         sf::Font font;
-        if (!font.openFromFile("arial.ttf")) return;
+        if (!font.openFromFile("arial.ttf")) return "";
 
         std::vector<sf::Text> render_tree;
+        std::vector<Hitbox> link_hitboxes; // Array to hold mathematical bounds
         float current_y = 70.f;
 
         for (const auto& node : dom) {
@@ -57,6 +64,12 @@ public:
             ui_text.setPosition(sf::Vector2f(70.f, current_y));
             
             render_tree.push_back(ui_text);
+
+            // 3. Record the Hitbox if the node is a link
+            if (node.tag == "a" && !node.link_url.empty()) {
+                link_hitboxes.push_back({ui_text.getGlobalBounds(), node.link_url});
+            }
+
             current_y += ui_text.getLocalBounds().size.y + 15.f; 
         }
 
@@ -67,30 +80,43 @@ public:
         div_box.setOutlineThickness(2.f);
         div_box.setPosition(sf::Vector2f(50.f, 50.f));
 
-        // Initialize the Scrolling Camera
         sf::View view = window.getDefaultView();
         float scroll_y = view.getCenter().y;
-        float min_scroll = scroll_y; // Cannot scroll above the top
+        float min_scroll = scroll_y; 
         float max_scroll = std::max(min_scroll, total_height + 100.f - (window.getSize().y / 2.f));
+
+        std::string clicked_url = "";
 
         while (window.isOpen()) {
             while (std::optional<sf::Event> event = window.pollEvent()) {
                 if (event->is<sf::Event::Closed>()) {
                     window.close();
                 } 
-                // Listen for Mouse Wheel events
                 else if (const auto* scrollEvent = event->getIf<sf::Event::MouseWheelScrolled>()) {
                     if (scrollEvent->wheel == sf::Mouse::Wheel::Vertical) {
-                        // Move camera based on scroll delta
                         scroll_y -= scrollEvent->delta * 40.f; 
-                        // Clamp the camera so it doesn't leave the document bounds
                         scroll_y = std::clamp(scroll_y, min_scroll, max_scroll);
                         view.setCenter(sf::Vector2f(view.getCenter().x, scroll_y));
                     }
                 }
+                //Mouse Click Detection
+                else if (const auto* clickEvent = event->getIf<sf::Event::MouseButtonPressed>()) {
+                    if (clickEvent->button == sf::Mouse::Button::Left) {
+                        sf::Vector2f mouse_world_pos = window.mapPixelToCoords(
+                            sf::Vector2i(clickEvent->position.x, clickEvent->position.y), view);
+                        
+                        for (const auto& box : link_hitboxes) {
+                            if (box.bounds.contains(mouse_world_pos)) {
+                                std::cout << "[CLICK DETECTED] Intersected with link: " << box.url << std::endl;
+                                clicked_url = box.url;
+                                window.close(); // Close GUI next page load
+                            }
+                        }
+                    }
+                }
             }
             
-            window.setView(view); // Apply the camera view to the window
+            window.setView(view); 
             window.clear(sf::Color::White);
             window.draw(div_box);
             for (const auto& t : render_tree) {
@@ -98,6 +124,7 @@ public:
             }
             window.display();
         }
+        return clicked_url;
     }
 };
 
