@@ -29,6 +29,29 @@ std::string cleanUrl(std::string url) {
     return url;
 }
 
+std::string decodeChunked(const std::string& raw_body) {
+    std::string decoded;
+    size_t pos = 0;
+    while (pos < raw_body.size()) {
+        size_t crlf = raw_body.find("\r\n", pos);
+        if (crlf == std::string::npos) break;
+        
+        std::string hex_str = raw_body.substr(pos, crlf - pos);
+        size_t chunk_size = 0;
+        try {
+            chunk_size = std::stoul(hex_str, nullptr, 16);
+        } catch (...) { break; } 
+        
+        if (chunk_size == 0) break;
+        
+        pos = crlf + 2; 
+        if (pos + chunk_size > raw_body.size()) break;
+        decoded += raw_body.substr(pos, chunk_size);
+        pos += chunk_size + 2; 
+    }
+    return decoded.empty() ? raw_body : decoded;
+}
+
 int main() {
   using namespace std;
 
@@ -44,8 +67,9 @@ int main() {
       return -1;
     }
 
-    std::string current_host = input_domain;
-    std::string current_path = "/";
+    std::string current_host;
+    std::string current_path;
+    parseUrl(input_domain, current_host, current_path); 
 
     while (true) {
         int max_redirects = 5;
@@ -91,10 +115,16 @@ int main() {
             std::getline(response_stream, header_line); 
 
             std::string redirect_url = "";
+            bool is_chunked = false;
+
             while (std::getline(response_stream, header_line) && header_line != "\r") {
                 if (header_line.find("Location: ") == 0 || header_line.find("location: ") == 0) {
                     redirect_url = header_line.substr(10);
                     redirect_url.erase(redirect_url.find_last_not_of(" \r\n") + 1);
+                }
+                if (header_line.find("Transfer-Encoding: chunked") != std::string::npos || 
+                    header_line.find("transfer-encoding: chunked") != std::string::npos) {
+                    is_chunked = true;
                 }
             }
 
@@ -119,26 +149,41 @@ int main() {
             }
 
             htmlBody = htmlBodyStream.str();
+            
+            if (is_chunked) {
+                htmlBody = decodeChunked(htmlBody);
+            }
             break; 
         }
 
         if (htmlBody.empty()) break; 
 
         std::vector<DOMNode> dom_tree = htmlParser::parseDOM(htmlBody); 
-        std::string clicked_url = WindowManager::open_browser_window(current_host, dom_tree);
+        std::string full_url = current_host + current_path;
+        
+        std::string action = WindowManager::open_browser_window(full_url, dom_tree);
 
-        if (clicked_url.empty()) {
+        if (action.empty()) {
             cout << "[*] Browser closed." << endl;
             break; 
         }
 
-        clicked_url = cleanUrl(clicked_url); 
-        if (clicked_url.find("http") == 0) {
-            parseUrl(clicked_url, current_host, current_path);
-        } else if (clicked_url.find("/") == 0) {
-            current_path = clicked_url;
-        } else {
-            current_path = "/" + clicked_url;
+        if (action.find("NEW_DOMAIN:") == 0) {
+            std::string typed_url = action.substr(11);
+            parseUrl(typed_url, current_host, current_path);
+            cout << "[*] Navigating to user input: " << typed_url << endl;
+        } 
+        else if (action.find("LINK:") == 0) {
+            std::string clicked_url = action.substr(5);
+            clicked_url = cleanUrl(clicked_url); 
+            
+            if (clicked_url.find("http") == 0) {
+                parseUrl(clicked_url, current_host, current_path);
+            } else if (clicked_url.find("/") == 0) {
+                current_path = clicked_url;
+            } else {
+                current_path = "/" + clicked_url;
+            }
         }
     } 
 
