@@ -9,6 +9,8 @@ struct DOMNode {
     std::string tag;
     std::string text;
     std::string link_url; 
+    bool is_image = false;
+    std::string image_url = "";
 };
 
 class htmlParser {
@@ -64,7 +66,7 @@ public:
         
         if (!text.empty() && !ignore_text) {
           text = decodeEntities(text);
-          dom_tree.push_back({current_tag, text, current_url});
+          dom_tree.push_back({current_tag, text, current_url, false, ""});
         }
       }
       
@@ -98,6 +100,17 @@ public:
                       size_t endQuote = tagContent.find('"', startQuote);
                       if (endQuote != std::string::npos) {
                           current_url = tagContent.substr(startQuote, endQuote - startQuote);
+                      }
+                  }
+              }
+              if (tagName == "img") {
+                  size_t srcPos = tagContent.find("src=\"");
+                  if (srcPos != std::string::npos) {
+                      size_t startQuote = srcPos + 5; 
+                      size_t endQuote = tagContent.find('"', startQuote);
+                      if (endQuote != std::string::npos) {
+                          std::string img_url = tagContent.substr(startQuote, endQuote - startQuote);
+                          dom_tree.push_back({"img", "[IMAGE]", "", true, img_url});
                       }
                   }
               }
