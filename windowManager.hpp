@@ -7,6 +7,7 @@
 #include <optional>
 #include <sstream>
 #include <vector>
+#include <list>
 #include <algorithm>
 #include <iostream>
 #include "htmlParser.hpp" 
@@ -58,11 +59,31 @@ public:
         bool is_typing = false;
         std::string return_action = "";
 
-        std::vector<sf::Text> render_tree;
+        std::vector<sf::Text> render_tree_text;
+        std::vector<sf::Sprite> render_tree_images;
+        std::list<sf::Texture> texture_storage;
         std::vector<Hitbox> link_hitboxes; 
+        
         float current_y = 90.f; 
 
         for (const auto& node : dom) {
+            if (node.is_image && !node.image_data.empty()) {
+                texture_storage.emplace_back();
+                if (texture_storage.back().loadFromMemory(node.image_data.data(), node.image_data.size())) {
+                    sf::Sprite sprite(texture_storage.back());
+                    sprite.setPosition(sf::Vector2f(70.f, current_y)); 
+
+                    if (sprite.getLocalBounds().size.x > 660.f) {
+                        float scale = 660.f / sprite.getLocalBounds().size.x;
+                        sprite.setScale(sf::Vector2f(scale, scale));
+                    }
+                    
+                    render_tree_images.push_back(sprite);
+                    current_y += sprite.getGlobalBounds().size.y + 15.f;
+                }
+                continue; 
+            }
+
             unsigned int size = 16;
             sf::Color color = sf::Color::Black;
 
@@ -79,7 +100,7 @@ public:
             ui_text.setFillColor(color);
             ui_text.setPosition(sf::Vector2f(70.f, current_y));
             
-            render_tree.push_back(ui_text);
+            render_tree_text.push_back(ui_text);
 
             if (node.tag == "a" && !node.link_url.empty()) {
                 link_hitboxes.push_back({ui_text.getGlobalBounds(), node.link_url});
@@ -154,7 +175,8 @@ public:
             
             window.setView(dom_view); 
             window.draw(div_box);
-            for (const auto& t : render_tree) window.draw(t);
+            for (const auto& sprite : render_tree_images) window.draw(sprite); 
+            for (const auto& text : render_tree_text) window.draw(text);       
             
             window.setView(ui_view);
             window.draw(top_bar);

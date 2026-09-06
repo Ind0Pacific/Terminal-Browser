@@ -11,6 +11,7 @@ struct DOMNode {
     std::string link_url; 
     bool is_image = false;
     std::string image_url = "";
+    std::vector<char> image_data; 
 };
 
 class htmlParser {
@@ -66,12 +67,11 @@ public:
         
         if (!text.empty() && !ignore_text) {
           text = decodeEntities(text);
-          dom_tree.push_back({current_tag, text, current_url, false, ""});
+          dom_tree.push_back({current_tag, text, current_url, false, "", {}});
         }
       }
       
       if (openBracket == std::string::npos) break;
-      
       size_t closeBracket = html.find('>', openBracket);
       if (closeBracket == std::string::npos) break;
       
@@ -103,6 +103,7 @@ public:
                       }
                   }
               }
+              
               if (tagName == "img") {
                   size_t srcPos = tagContent.find("src=\"");
                   if (srcPos != std::string::npos) {
@@ -110,7 +111,7 @@ public:
                       size_t endQuote = tagContent.find('"', startQuote);
                       if (endQuote != std::string::npos) {
                           std::string img_url = tagContent.substr(startQuote, endQuote - startQuote);
-                          dom_tree.push_back({"img", "[IMAGE]", "", true, img_url});
+                          dom_tree.push_back({"img", "[IMAGE]", "", true, img_url, {}});
                       }
                   }
               }
