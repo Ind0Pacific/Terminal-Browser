@@ -44,24 +44,33 @@ public:
 
         sf::RectangleShape top_bar(sf::Vector2f(800.f, 60.f));
         top_bar.setFillColor(sf::Color(200, 200, 200));
+        sf::RectangleShape back_btn(sf::Vector2f(40.f, 40.f));
+        back_btn.setFillColor(sf::Color(170, 170, 170));
+        back_btn.setOutlineColor(sf::Color(130, 130, 130));
+        back_btn.setOutlineThickness(2.f);
+        back_btn.setPosition(sf::Vector2f(10.f, 10.f));
 
-        sf::RectangleShape address_box(sf::Vector2f(700.f, 40.f));
+        sf::Text back_text(font, "<", 24);
+        back_text.setFillColor(sf::Color::Black);
+        back_text.setPosition(sf::Vector2f(22.f, 15.f));
+
+        sf::RectangleShape address_box(sf::Vector2f(730.f, 40.f));
         address_box.setFillColor(sf::Color::White);
         address_box.setOutlineColor(sf::Color(150, 150, 150));
         address_box.setOutlineThickness(2.f);
-        address_box.setPosition(sf::Vector2f(50.f, 10.f));
+        address_box.setPosition(sf::Vector2f(60.f, 10.f));
 
         std::string input_string = current_url;
         sf::Text address_text(font, input_string, 20);
         address_text.setFillColor(sf::Color::Black);
-        address_text.setPosition(sf::Vector2f(60.f, 15.f));
+        address_text.setPosition(sf::Vector2f(70.f, 15.f));
 
         bool is_typing = false;
         std::string return_action = "";
 
         std::vector<sf::Text> render_tree_text;
         std::vector<sf::Sprite> render_tree_images;
-        std::list<sf::Texture> texture_storage;
+        std::list<sf::Texture> texture_storage; 
         std::vector<Hitbox> link_hitboxes; 
         
         float current_y = 90.f; 
@@ -72,7 +81,7 @@ public:
                 if (texture_storage.back().loadFromMemory(node.image_data.data(), node.image_data.size())) {
                     sf::Sprite sprite(texture_storage.back());
                     sprite.setPosition(sf::Vector2f(70.f, current_y)); 
-
+                    
                     if (sprite.getLocalBounds().size.x > 660.f) {
                         float scale = 660.f / sprite.getLocalBounds().size.x;
                         sprite.setScale(sf::Vector2f(scale, scale));
@@ -135,7 +144,11 @@ public:
                     if (clickEvent->button == sf::Mouse::Button::Left) {
                         sf::Vector2f static_mouse_pos(clickEvent->position.x, clickEvent->position.y);
                         
-                        if (address_box.getGlobalBounds().contains(static_mouse_pos)) {
+                        if (back_btn.getGlobalBounds().contains(static_mouse_pos)) {
+                            return_action = "BACK";
+                            window.close();
+                        }
+                        else if (address_box.getGlobalBounds().contains(static_mouse_pos)) {
                             is_typing = true;
                             address_box.setOutlineColor(sf::Color::Blue);
                         } else {
@@ -180,6 +193,8 @@ public:
             
             window.setView(ui_view);
             window.draw(top_bar);
+            window.draw(back_btn);
+            window.draw(back_text);
             window.draw(address_box);
             window.draw(address_text);
 
