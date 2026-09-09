@@ -116,6 +116,8 @@ int main() {
     std::string current_path;
     parseUrl(input_domain, current_host, current_path); 
 
+    std::vector<std::string> history_stack;
+
     while (true) {
         int max_redirects = 5;
         std::string htmlBody;
@@ -206,11 +208,23 @@ int main() {
             break; 
         }
 
-        if (action.find("NEW_DOMAIN:") == 0) {
+        if (action == "BACK") {
+            if (!history_stack.empty()) {
+                std::string previous_url = history_stack.back();
+                history_stack.pop_back(); 
+                parseUrl(previous_url, current_host, current_path);
+                cout << "[*] Going back to: " << previous_url << endl;
+            } else {
+                cout << "[!] History is empty." << endl;
+            }
+        } 
+        else if (action.find("NEW_DOMAIN:") == 0) {
+            history_stack.push_back(full_url);
             std::string typed_url = action.substr(11);
             parseUrl(typed_url, current_host, current_path);
         } 
         else if (action.find("LINK:") == 0) {
+            history_stack.push_back(full_url); 
             std::string clicked_url = action.substr(5);
             clicked_url = cleanUrl(clicked_url); 
             if (clicked_url.find("http") == 0) {
