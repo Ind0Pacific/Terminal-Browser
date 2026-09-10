@@ -18,6 +18,25 @@ struct Hitbox {
 };
 
 class WindowManager {
+private:
+    static sf::Color hexToColor(std::string hexStr, sf::Color fallback) {
+        if (hexStr.empty()) return fallback;
+        if (hexStr[0] == '#') hexStr.erase(0, 1);
+        
+        if (hexStr.length() == 3) {
+            hexStr = std::string(2, hexStr[0]) + std::string(2, hexStr[1]) + std::string(2, hexStr[2]);
+        }
+        if (hexStr.length() == 6) {
+            try {
+                int r = std::stoi(hexStr.substr(0, 2), nullptr, 16);
+                int g = std::stoi(hexStr.substr(2, 2), nullptr, 16);
+                int b = std::stoi(hexStr.substr(4, 2), nullptr, 16);
+                return sf::Color(r, g, b);
+            } catch (...) {}
+        }
+        return fallback;
+    }
+
 public:
     static std::string wrapText(const std::string& text, const sf::Font& font, unsigned int characterSize, float maxWidth) {
         std::istringstream words(text);
@@ -44,6 +63,7 @@ public:
 
         sf::RectangleShape top_bar(sf::Vector2f(800.f, 60.f));
         top_bar.setFillColor(sf::Color(200, 200, 200));
+
         sf::RectangleShape back_btn(sf::Vector2f(40.f, 40.f));
         back_btn.setFillColor(sf::Color(170, 170, 170));
         back_btn.setOutlineColor(sf::Color(130, 130, 130));
@@ -103,6 +123,9 @@ public:
             } else if (node.tag == "b" || node.tag == "strong") {
                 color = sf::Color(150, 0, 0); 
             }
+
+            if (node.css_font_size > 0) size = node.css_font_size;
+            if (!node.css_color.empty()) color = hexToColor(node.css_color, color);
 
             std::string formatted_text = wrapText(node.text, font, size, 660.f);
             sf::Text ui_text(font, formatted_text, size);
