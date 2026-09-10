@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <map>
 
 struct DOMNode {
     std::string tag;
@@ -11,11 +13,20 @@ struct DOMNode {
     std::string link_url; 
     bool is_image = false;
     std::string image_url = "";
-    std::vector<char> image_data; 
+    std::vector<char> image_data;
+    std::string css_color = "";
+    int css_font_size = 0;
 };
 
 class htmlParser {
 private:
+    static std::string trim(const std::string& str) {
+        size_t first = str.find_first_not_of(" \t\r\n");
+        if (std::string::npos == first) return "";
+        size_t last = str.find_last_not_of(" \t\r\n");
+        return str.substr(first, (last - first + 1));
+    }
+
     static std::string decodeEntities(std::string text) {
         size_t pos = 0;
         while ((pos = text.find("&amp;")) != std::string::npos) text.replace(pos, 5, "&");
@@ -55,19 +66,24 @@ public:
     std::vector<DOMNode> dom_tree;
     size_t cursor = 0;
     bool ignore_text = false;
+    bool in_style_tag = false;
     std::string current_tag = "span"; 
     std::string current_url = ""; 
+    std::string raw_css = "";
 
     while (cursor < html.length()) {
       size_t openBracket = html.find('<', cursor);
 
       if (openBracket > cursor) {
         std::string text = html.substr(cursor, openBracket - cursor);
+        std::string original_text = text;
         text.erase(0, text.find_first_not_of(" \n\r\t")); 
         
-        if (!text.empty() && !ignore_text) {
-          text = decodeEntities(text);
-          dom_tree.push_back({current_tag, text, current_url, false, "", {}});
+        if (in_style_tag) {
+            raw_css += original_text; 
+        } else if (!text.empty() && !ignore_text) {
+            text = decodeEntities(text);
+            dom_tree.push_back({current_tag, text, current_url, false, "", {}, "", 0});
         }
       }
       
@@ -80,15 +96,21 @@ public:
       if (!tagContent.empty()) {
         if (tagContent[0] == '/') {
           std::string tagName = tagContent.substr(1);
-          if (tagName == "script" || tagName == "style") ignore_text = false;
+          if (tagName == "script" || tagName == "style") {
+              ignore_text = false;
+              in_style_tag = false;
+          }
           current_tag = "span"; 
           current_url = ""; 
         } else {
           size_t spacePos = tagContent.find(' ');
           std::string tagName = tagContent.substr(0, spacePos);
           
-          if (tagName == "script" || tagName == "style") {
+          if (tagName == "script") {
               ignore_text = true;
+          } else if (tagName == "style") {
+              ignore_text = true;
+              in_style_tag = true;
           } else {
               current_tag = tagName; 
               current_url = ""; 
@@ -111,7 +133,7 @@ public:
                       size_t endQuote = tagContent.find('"', startQuote);
                       if (endQuote != std::string::npos) {
                           std::string img_url = tagContent.substr(startQuote, endQuote - startQuote);
-                          dom_tree.push_back({"img", "[IMAGE]", "", true, img_url, {}});
+                          dom_tree.push_back({"img", "[IMAGE]", "", true, img_url, {}, "", 0});
                       }
                   }
               }
@@ -120,6 +142,53 @@ public:
       }
       cursor = closeBracket + 1;
     }
+
+    std::map<std::string, std::pair<std::string, int>> styles; 
+    size_t css_cursor = 0;
+    
+    while (css_cursor < raw_css.length()) {
+        size_t open_brace = raw_css.find('{', css_cursor);
+        if (open_brace == std::string::npos) break;
+        std::string selectors = raw_css.substr(css_cursor, open_brace - css_cursor);
+        
+        size_t close_brace = raw_css.find('}', open_brace);
+        if (close_brace == std::string::npos) break;
+        std::string properties = raw_css.substr(open_brace + 1, close_brace - open_brace - 1);
+        
+        std::string parsed_color = "";
+        int parsed_size = 0;
+        
+        std::stringstream prop_stream(properties);
+        std::string prop;
+        while (std::getline(prop_stream, prop, ';')) {
+            size_t colon = prop.find(':');
+            if (colon != std::string::npos) {
+                std::string key = trim(prop.substr(0, colon));
+                std::string val = trim(prop.substr(colon + 1));
+                if (key == "color") parsed_color = val;
+                if (key == "font-size") {
+                    try { parsed_size = std::stoi(val); } catch(...) {}
+                }
+            }
+        }
+        
+        std::stringstream sel_stream(selectors);
+        std::string sel;
+        while (std::getline(sel_stream, sel, ',')) {
+            sel = trim(sel);
+            if (!parsed_color.empty()) styles[sel].first = parsed_color;
+            if (parsed_size > 0) styles[sel].second = parsed_size;
+        }
+        css_cursor = close_brace + 1;
+    }
+
+    for (auto& node : dom_tree) {
+        if (styles.count(node.tag)) {
+            node.css_color = styles[node.tag].first;
+            node.css_font_size = styles[node.tag].second;
+        }
+    }
+
     return dom_tree;
   }
 };
