@@ -43,7 +43,8 @@ public:
 
     static std::string open_browser_window(const std::string& current_url, std::vector<DOMNode>& dom) {
         sf::RenderWindow window(sf::VideoMode(sf::Vector2u(800, 600)), "My C++ Browser");
-        sf::Font font; if (!font.openFromFile("arial.ttf")) return "";
+        sf::Font font; 
+        if (!font.openFromFile("unicode.ttf")) return "";
 
         sf::RectangleShape top_bar(sf::Vector2f(800.f, 60.f)); top_bar.setFillColor(sf::Color(200, 200, 200));
         sf::RectangleShape back_btn(sf::Vector2f(40.f, 40.f)); back_btn.setFillColor(sf::Color(170, 170, 170)); back_btn.setOutlineColor(sf::Color(130, 130, 130)); back_btn.setOutlineThickness(2.f); back_btn.setPosition(sf::Vector2f(10.f, 10.f));
