@@ -10,6 +10,7 @@
 #include <list>
 #include <algorithm>
 #include <iostream>
+#include <fstream> 
 #include "htmlParser.hpp" 
 
 struct Hitbox { sf::FloatRect bounds; std::string url; };
@@ -49,7 +50,11 @@ public:
         sf::RectangleShape top_bar(sf::Vector2f(800.f, 60.f)); top_bar.setFillColor(sf::Color(200, 200, 200));
         sf::RectangleShape back_btn(sf::Vector2f(40.f, 40.f)); back_btn.setFillColor(sf::Color(170, 170, 170)); back_btn.setOutlineColor(sf::Color(130, 130, 130)); back_btn.setOutlineThickness(2.f); back_btn.setPosition(sf::Vector2f(10.f, 10.f));
         sf::Text back_text(font, "<", 24); back_text.setFillColor(sf::Color::Black); back_text.setPosition(sf::Vector2f(22.f, 15.f));
-        sf::RectangleShape address_box(sf::Vector2f(730.f, 40.f)); address_box.setFillColor(sf::Color::White); address_box.setOutlineColor(sf::Color(150, 150, 150)); address_box.setOutlineThickness(2.f); address_box.setPosition(sf::Vector2f(60.f, 10.f));
+        
+        sf::RectangleShape bookmark_btn(sf::Vector2f(40.f, 40.f)); bookmark_btn.setFillColor(sf::Color(170, 170, 170)); bookmark_btn.setOutlineColor(sf::Color(130, 130, 130)); bookmark_btn.setOutlineThickness(2.f); bookmark_btn.setPosition(sf::Vector2f(740.f, 10.f));
+        sf::Text bookmark_text(font, "*", 30); bookmark_text.setFillColor(sf::Color::Black); bookmark_text.setPosition(sf::Vector2f(752.f, 18.f));
+
+        sf::RectangleShape address_box(sf::Vector2f(670.f, 40.f)); address_box.setFillColor(sf::Color::White); address_box.setOutlineColor(sf::Color(150, 150, 150)); address_box.setOutlineThickness(2.f); address_box.setPosition(sf::Vector2f(60.f, 10.f));
         
         std::string input_string = current_url;
         sf::Text address_text(font, input_string, 20); address_text.setFillColor(sf::Color::Black); address_text.setPosition(sf::Vector2f(70.f, 15.f));
@@ -87,28 +92,16 @@ public:
             if (node.is_input) {
                 sf::RectangleShape fieldBox;
                 if (node.is_button) {
-                    fieldBox.setSize(sf::Vector2f(200.f, 35.f));
-                    fieldBox.setFillColor(sf::Color(220, 220, 220));
-                    fieldBox.setOutlineColor(sf::Color(100, 100, 100));
+                    fieldBox.setSize(sf::Vector2f(200.f, 35.f)); fieldBox.setFillColor(sf::Color(220, 220, 220)); fieldBox.setOutlineColor(sf::Color(100, 100, 100));
                 } else {
-                    fieldBox.setSize(sf::Vector2f(400.f, 35.f));
-                    fieldBox.setFillColor(sf::Color::White);
-                    fieldBox.setOutlineColor(sf::Color(150, 150, 150));
+                    fieldBox.setSize(sf::Vector2f(400.f, 35.f)); fieldBox.setFillColor(sf::Color::White); fieldBox.setOutlineColor(sf::Color(150, 150, 150));
                 }
-                fieldBox.setOutlineThickness(1.f);
-                fieldBox.setPosition(sf::Vector2f(70.f, current_y));
+                fieldBox.setOutlineThickness(1.f); fieldBox.setPosition(sf::Vector2f(70.f, current_y));
                 
-                sf::Text ui_text(font, node.is_button ? node.text : node.input_value, 18);
-                ui_text.setFillColor(sf::Color::Black);
-                ui_text.setPosition(sf::Vector2f(75.f, current_y + 5.f));
-
-                render_tree_shapes.push_back(fieldBox);
-                size_t text_idx = render_tree_text.size();
-                render_tree_text.push_back(ui_text);
-
+                sf::Text ui_text(font, node.is_button ? node.text : node.input_value, 18); ui_text.setFillColor(sf::Color::Black); ui_text.setPosition(sf::Vector2f(75.f, current_y + 5.f));
+                render_tree_shapes.push_back(fieldBox); size_t text_idx = render_tree_text.size(); render_tree_text.push_back(ui_text);
                 form_hitboxes.push_back({fieldBox.getGlobalBounds(), i, text_idx, node.is_button});
-                current_y += 50.f;
-                continue;
+                current_y += 50.f; continue;
             }
 
             unsigned int size = 16; sf::Color color = sf::Color::Black;
@@ -152,6 +145,13 @@ public:
                         address_box.setOutlineColor(sf::Color(150, 150, 150));
 
                         if (back_btn.getGlobalBounds().contains(static_mouse_pos)) { return_action = "BACK"; window.close(); }
+                        else if (bookmark_btn.getGlobalBounds().contains(static_mouse_pos)) {
+                            std::ofstream outfile("bookmarks.txt", std::ios_base::app);
+                            if (outfile.is_open()) {
+                                outfile << current_url << "\n";
+                                bookmark_btn.setFillColor(sf::Color(255, 215, 0)); 
+                            }
+                        }
                         else if (address_box.getGlobalBounds().contains(static_mouse_pos)) {
                             is_typing_address = true; address_box.setOutlineColor(sf::Color::Blue);
                         } else {
@@ -197,9 +197,7 @@ public:
                         else if (textEvent->unicode >= 32 && textEvent->unicode < 127) node.input_value += static_cast<char>(textEvent->unicode);
                         
                         for (auto& box : form_hitboxes) {
-                            if (box.dom_index == focused_input_idx) {
-                                render_tree_text[box.text_index].setString(node.input_value);
-                            }
+                            if (box.dom_index == focused_input_idx) render_tree_text[box.text_index].setString(node.input_value);
                         }
                     }
                 }
@@ -215,6 +213,7 @@ public:
             window.setView(ui_view);
             window.draw(top_bar); window.draw(back_btn); window.draw(back_text);
             window.draw(address_box); window.draw(address_text);
+            window.draw(bookmark_btn); window.draw(bookmark_text); 
             window.display();
         }
         return return_action;
